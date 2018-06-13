@@ -35,7 +35,7 @@ var (
 	}
 )
 
-var handlerToTemplate = map[string]TemplateData{
+var handlerToTemplate = map[string]templateData{
 	"watcher": {
 		tmplName: "watcher.tmpl",
 		tmplVar:  watcherTmpl,
@@ -52,8 +52,8 @@ type ContractType int
 // NameToContractType is a map type of readable name to a ContractType enum value
 type NameToContractType map[string]ContractType
 
-// TemplateData is a struct to store template information
-type TemplateData struct {
+// templateData is a struct to store template information
+type templateData struct {
 	tmplName string
 	tmplVar  string
 }

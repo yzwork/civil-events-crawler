@@ -2,16 +2,20 @@
 package retriever_test
 
 import (
+	"errors"
+	log "github.com/golang/glog"
+	"math/big"
+	"testing"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	log "github.com/golang/glog"
+
 	"github.com/joincivil/civil-events-crawler/pkg/generated/contract"
 	"github.com/joincivil/civil-events-crawler/pkg/generated/filterer"
 	"github.com/joincivil/civil-events-crawler/pkg/model"
 	"github.com/joincivil/civil-events-crawler/pkg/retriever"
-	"math/big"
-	"testing"
 )
 
 // Using rinkeby for now
@@ -31,6 +35,17 @@ func setupRinkebyClient() (*ethclient.Client, error) {
 	return client, nil
 }
 
+type testErrorFilterer struct{}
+
+func (t *testErrorFilterer) ContractName() string {
+	return "TestErrorContract"
+}
+
+func (t *testErrorFilterer) StartFilterers(client bind.ContractBackend,
+	pastEvents *[]model.CivilEvent, startBlock uint64) error {
+	return errors.New("This is an error starting filterer")
+}
+
 // TestEventCollection tests that events are being collected,
 func TestEventCollection(t *testing.T) {
 	client, err := setupRinkebyClient()
@@ -48,6 +63,21 @@ func TestEventCollection(t *testing.T) {
 	pastEvents := retrieve.PastEvents
 	if len(pastEvents) == 0 {
 		t.Error("No events collected")
+	}
+}
+
+func TestErrorFilterer(t *testing.T) {
+	client, err := setupRinkebyClient()
+	if err != nil {
+		t.Errorf("Error connecting to rinkeby: %v", err)
+	}
+	filterers := []model.ContractFilterers{
+		&testErrorFilterer{},
+	}
+	retrieve := retriever.NewCivilEventRetriever(client, startBlock, filterers)
+	err = retrieve.Retrieve()
+	if err == nil {
+		t.Errorf("Should have failed to retrieve due to bad filterer: %v", err)
 	}
 }
 

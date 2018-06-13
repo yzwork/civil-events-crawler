@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-func TestGenerateEventHandlersFromTemplate(t *testing.T) {
-	Event1 := &gen.EventHandler{
+var (
+	event1 = &gen.EventHandler{
 		EventMethod: "Application",
 		EventName:   "_Application",
 		EventType:   "CivilTCRContractApplication",
@@ -19,7 +19,7 @@ func TestGenerateEventHandlersFromTemplate(t *testing.T) {
 			{Type: "common.Address"},
 		},
 	}
-	Event2 := &gen.EventHandler{
+	event2 = &gen.EventHandler{
 		EventMethod: "ApplicationRemoved",
 		EventName:   "_ApplicationRemoved",
 		EventType:   "CivilTCRContractApplicationRemoved",
@@ -27,28 +27,72 @@ func TestGenerateEventHandlersFromTemplate(t *testing.T) {
 			{Type: "common.Address"},
 		},
 	}
-	testWatchers := &gen.ContractData{
+	testWatchers = &gen.ContractData{
 		PackageName:         "watcher",
 		ContractImportPath:  "github.com/joincivil/civil-events-crawler/pkg/generated/contract",
 		ContractTypePackage: "contract",
 		ContractTypeName:    "CivilTCRContract",
 		GenTime:             time.Now().UTC(),
 		EventHandlers: []*gen.EventHandler{
-			Event1,
-			Event2,
+			event1,
+			event2,
 		},
 	}
-	testFilterers := &gen.ContractData{
+	testFilterers = &gen.ContractData{
 		PackageName:         "retrieve",
 		ContractImportPath:  "github.com/joincivil/civil-events-crawler/pkg/generated/contract",
 		ContractTypePackage: "contract",
 		ContractTypeName:    "CivilTCRContract",
 		GenTime:             time.Now().UTC(),
 		EventHandlers: []*gen.EventHandler{
-			Event1,
-			Event2,
+			event1,
+			event2,
 		},
 	}
+	testBadGoFmtWatchers = &gen.ContractData{
+		PackageName:         "watcher",
+		ContractImportPath:  "((((github.com/joincivil/civil-events-crawler/pkg/generated/contract",
+		ContractTypePackage: "contract",
+		ContractTypeName:    "CivilTCRContract((((((",
+		GenTime:             time.Now().UTC(),
+		EventHandlers: []*gen.EventHandler{
+			event1,
+			event2,
+		},
+	}
+)
+
+func TestNameToContractType(t *testing.T) {
+	names := gen.NameToContractTypes.Names()
+	if len(names) != len(gen.NameToContractTypes) {
+		t.Errorf("Len of Names() should be same as length of NameToContractTypes")
+	}
+	namesFound := 0
+	for _, name := range names {
+		if _, ok := gen.NameToContractTypes[name]; ok {
+			namesFound++
+		}
+	}
+	if namesFound != len(gen.NameToContractTypes) {
+		t.Errorf("Matching names found should be same num as in NameToContractTypes")
+	}
+}
+
+func TestGenerateEventHandlersFromBadTemplates(t *testing.T) {
+	bufWatcher := &bytes.Buffer{}
+	err := gen.GenerateEventHandlersFromTemplate(bufWatcher, testWatchers, true,
+		"badhandlerName")
+	if err == nil {
+		t.Errorf("Should have failed with a bad handler name: err: %v", err)
+	}
+	err = gen.GenerateEventHandlersFromTemplate(bufWatcher, testBadGoFmtWatchers, true,
+		"watcher")
+	if err == nil {
+		t.Errorf("Should have failed with a gofmt failure: err: %v", err)
+	}
+}
+
+func TestGenerateEventHandlersFromTemplate(t *testing.T) {
 	bufWatcher := &bytes.Buffer{}
 	bufFilterer := &bytes.Buffer{}
 	err := gen.GenerateEventHandlersFromTemplate(bufWatcher, testWatchers, true, "watcher")
@@ -82,9 +126,16 @@ func TestGenerateEventHandlersFromTemplate(t *testing.T) {
 
 }
 
+const BadContractType gen.ContractType = 500
+
 func TestGenerateWatchersForCivilTcr(t *testing.T) {
 	buf := &bytes.Buffer{}
-	err := gen.GenerateCivilEventHandlers(buf, gen.CivilTcrContractType, "watcher", "watcher")
+	err := gen.GenerateCivilEventHandlers(buf, BadContractType, "watcher", "watcher")
+	if err == nil {
+		t.Errorf("Should have failed when given an unknown contract type: err: %v", err)
+	}
+
+	err = gen.GenerateCivilEventHandlers(buf, gen.CivilTcrContractType, "watcher", "watcher")
 	if err != nil {
 		t.Errorf("Error generating watchers for the Civil TCR contract: err: %v", err)
 	}
