@@ -54,6 +54,7 @@ func (p *PostgresPersister) SaveEvents(events []*model.CivilEvent) error {
 func (p *PostgresPersister) saveEventsToTable(events []*model.CivilEvent, tableName string) error {
 	var err error
 	for _, event := range events {
+		fmt.Printf("event %v, %v, %v\n", event.EventType(), event.BlockNumber(), event.Hash())
 		dbEvent, dbEventErr := postgres.NewCivilEvent(event)
 		if dbEventErr != nil {
 			return dbEventErr
@@ -105,14 +106,18 @@ func (p *PostgresPersister) PopulateBlockDataFromDB(tableName string) error {
 		blockData.BlockNumber = logPayload.BlockNumber
 		blockData.BlockHash = logPayload.BlockHash
 		contractAddress := civilEvent.ContractAddress()
-		p.eventToLastBlockNumber[contractAddress] = make(map[string]PersisterBlockData)
+		if p.eventToLastBlockNumber[contractAddress] == nil {
+			p.eventToLastBlockNumber[contractAddress] = make(map[string]PersisterBlockData)
+		}
 		p.eventToLastBlockNumber[contractAddress][civilEvent.EventType()] = blockData
 	}
+	fmt.Println(p.eventToLastBlockNumber)
 	return nil
 }
 
 func (p *PostgresPersister) getLatestEvents(tableName string) ([]postgres.CivilEvent, error) {
 	query := p.retrieveLatestEventsQueryString(tableName)
+	fmt.Printf("query='%v'", query)
 	events := []postgres.CivilEvent{}
 	err := p.db.Select(&events, query)
 	return events, err

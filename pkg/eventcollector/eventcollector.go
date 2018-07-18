@@ -62,21 +62,22 @@ type CivilEventCollector struct {
 func (c *CivilEventCollector) StartCollection() error {
 	err := c.retrieveEvents()
 	if err != nil {
-		return err
+		return fmt.Errorf("Error retrieving events: err: %v", err)
 	}
 	pastEvents := c.retrieve.PastEvents
+
 	err = c.eventDataPersister.SaveEvents(pastEvents)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error saving existing events: err: %v", err)
 	}
 	err = c.persistRetrieverLastBlockData()
 	if err != nil {
-		return err
+		return fmt.Errorf("Error saving last blocks: err: %v", err)
 	}
 
 	err = c.startListener()
 	if err != nil {
-		return err
+		return fmt.Errorf("Error starting listener: err: %v", err)
 	}
 	defer func() {
 		err = c.StopCollection()
@@ -166,7 +167,10 @@ func (c *CivilEventCollector) updateRetrieverStartingBlocks() {
 		eventTypes := filter.EventTypes()
 		for _, eventType := range eventTypes {
 			lastBlock := c.retrieverPersister.LastBlockNumber(eventType, contractAddress)
-			filter.UpdateStartBlock(eventType, lastBlock)
+			// Increment so we start looking on the next block
+			startBlock := lastBlock + 1
+			fmt.Printf("event = %v, %v, %v\n", eventType, lastBlock, startBlock)
+			filter.UpdateStartBlock(eventType, startBlock)
 		}
 	}
 }
